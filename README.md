@@ -23,6 +23,7 @@ Rebuilt from a legacy Laravel 5.8 + Angular 8 monolith into a modern, cloud-read
 | Logging | Logback + Logstash encoder (structured JSON) + Correlation ID |
 | Health | Spring Actuator (readiness/liveness probes) |
 | API Docs | SpringDoc OpenAPI (Swagger) |
+| Testing | JUnit 5, Testcontainers, Cucumber (integration/BDD) |
 | Containers | Docker + Docker Compose (dev) / Kubernetes (prod) |
 | CI/CD | GitHub Actions |
 
@@ -427,6 +428,107 @@ Debugging flow:
   2. Search correlationId across all service logs
   3. See full request path + where it failed
   4. Click traceId → jump to distributed trace visualization
+```
+
+---
+
+## Testing Strategy
+
+### Stack
+
+| Tool | Purpose |
+|------|---------|
+| **JUnit 5 (Jupiter)** | Unit and integration test runner |
+| **Testcontainers** | Spin up real PostgreSQL and RabbitMQ containers for integration tests |
+| **Cucumber** | BDD-style integration/acceptance tests with Gherkin feature files |
+| **Spring Boot Test** | `@SpringBootTest`, `@WebMvcTest`, `@DataJpaTest`, test slices |
+| **Mockito** | Mocking for unit tests |
+
+### Test Types
+
+| Type | Scope | Tools | Runs Against |
+|------|-------|-------|-------------|
+| **Unit** | Single class/method | JUnit 5 + Mockito | In-memory (no containers) |
+| **Integration** | Service layer + DB | JUnit 5 + Testcontainers | Real PostgreSQL/RabbitMQ containers |
+| **BDD / Acceptance** | End-to-end per service | Cucumber + Testcontainers | Real containers, Gherkin scenarios |
+
+### Directory Structure (per service)
+
+```
+src/
+├── main/java/...
+└── test/
+    ├── java/com/sigpqr/<service>/
+    │   ├── unit/              # Unit tests (Mockito, no Spring context)
+    │   ├── integration/       # Integration tests (@SpringBootTest + Testcontainers)
+    │   └── bdd/               # Cucumber glue code (step definitions, hooks)
+    │       └── steps/
+    └── resources/
+        └── features/          # Gherkin .feature files
+```
+
+### Testcontainers Usage
+
+Each service that uses a database or message broker defines a shared container config:
+
+```java
+@Testcontainers
+@SpringBootTest
+abstract class IntegrationTestBase {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17")
+            .withDatabaseName("test_db")
+            .withUsername("test")
+            .withPassword("test");
+
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+    }
+}
+```
+
+### Cucumber Integration
+
+Feature files describe business scenarios in Gherkin:
+
+```gherkin
+# src/test/resources/features/create-pqr.feature
+Feature: Create PQR Request
+
+  Scenario: Student creates a petition
+    Given a student with email "student@uniexample.edu"
+    When the student creates a PQR of type "Petición"
+    Then the PQR status should be "ABIERTA"
+    And a notification event should be published
+```
+
+Cucumber runs on top of JUnit 5 via `@Suite` + `@SelectClasspathResource`:
+
+```java
+@Suite
+@IncludeEngines("cucumber")
+@SelectClasspathResource("features")
+@ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "com.sigpqr.pqr.bdd.steps")
+class CucumberRunnerTest {
+}
+```
+
+### Running Tests
+
+```bash
+# All tests (unit + integration + BDD) — requires Docker running
+cd backend
+mvn clean verify
+
+# Unit tests only (no Docker needed)
+mvn test -Dgroups="unit"
+
+# Integration tests only
+mvn test -Dgroups="integration"
 ```
 
 ---
