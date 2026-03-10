@@ -1,0 +1,20 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: sigpqr-config-server
+  cloud:
+    config:
+      server:
+        git:
+          uri: file:///${user.dir}/../config-repo
+          default-label: main
+          clone-on-start: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true

@@ -1,0 +1,54 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: sigpqr-api-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - TokenRelay
+      routes:
+        - id: auth-service
+          uri: lb://sigpqr-auth-service
+          predicates:
+            - Path=/api/auth/**
+        - id: user-service
+          uri: lb://sigpqr-user-service
+          predicates:
+            - Path=/api/users/**
+        - id: academic-service
+          uri: lb://sigpqr-academic-service
+          predicates:
+            - Path=/api/academic/**
+        - id: pqr-service
+          uri: lb://sigpqr-pqr-service
+          predicates:
+            - Path=/api/pqr/**
+        - id: notification-service
+          uri: lb://sigpqr-notification-service
+          predicates:
+            - Path=/api/notifications/**
+        - id: file-service
+          uri: lb://sigpqr-file-service
+          predicates:
+            - Path=/api/files/**
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: "http://localhost:5173"
+            allowed-methods: "*"
+            allowed-headers: "*"
+            allow-credentials: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
