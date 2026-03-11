@@ -1,0 +1,337 @@
+{
+  "info": {
+    "name": "SIGPQRv2 - Auth Login Flow",
+    "description": "OAuth2 Authorization Code + PKCE login flow for SIGPQRv2 web clients.\n\n## How to use\n1. Run '1. Get PKCE Pair' (pre-script generates code_verifier + code_challenge)\n2. Copy the authorize URL from '2. Authorize' and open it in a browser\n3. Login with seeded credentials (e.g. admin@sigpqr.local / Password123)\n4. Copy the 'code' from the callback redirect URL\n5. Paste it into '3. Exchange Code for Tokens' and send\n6. Use the access_token for authenticated requests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "auth_base_url", "value": "http://localhost:9000" },
+    { "key": "client_id", "value": "sigpqr-web-admin" },
+    { "key": "redirect_uri", "value": "http://localhost:3001/callback" },
+    { "key": "code_verifier", "value": "" },
+    { "key": "code_challenge", "value": "" },
+    { "key": "auth_code", "value": "" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Discovery",
+      "item": [
+        {
+          "name": "OpenID Configuration",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_base_url}}/.well-known/openid-configuration",
+              "host": ["{{auth_base_url}}"],
+              "path": [".well-known", "openid-configuration"]
+            },
+            "description": "Discover all OAuth2/OIDC endpoints supported by the auth server."
+          }
+        },
+        {
+          "name": "JWK Set (Public Keys)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_base_url}}/oauth2/jwks",
+              "host": ["{{auth_base_url}}"],
+              "path": ["oauth2", "jwks"]
+            },
+            "description": "Get the public keys used to verify JWT signatures."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authorization Code + PKCE Flow",
+      "item": [
+        {
+          "name": "1. Generate PKCE Pair",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Generate code_verifier (43-128 chars, URL-safe)",
+                  "function generateCodeVerifier() {",
+                  "    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';",
+                  "    let result = '';",
+                  "    const array = new Uint8Array(64);",
+                  "    for (let i = 0; i < 64; i++) {",
+                  "        array[i] = Math.floor(Math.random() * 256);",
+                  "    }",
+                  "    for (let i = 0; i < 64; i++) {",
+                  "        result += chars[array[i] % chars.length];",
+                  "    }",
+                  "    return result;",
+                  "}",
+                  "",
+                  "// SHA-256 hash + Base64URL encode",
+                  "async function generateCodeChallenge(verifier) {",
+                  "    const encoder = new TextEncoder();",
+                  "    const data = encoder.encode(verifier);",
+                  "    const digest = await crypto.subtle.digest('SHA-256', data);",
+                  "    const base64 = btoa(String.fromCharCode(...new Uint8Array(digest)));",
+                  "    return base64.replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+                  "}",
+                  "",
+                  "const verifier = generateCodeVerifier();",
+                  "pm.collectionVariables.set('code_verifier', verifier);",
+                  "",
+                  "generateCodeChallenge(verifier).then(challenge => {",
+                  "    pm.collectionVariables.set('code_challenge', challenge);",
+                  "    console.log('code_verifier:', verifier);",
+                  "    console.log('code_challenge:', challenge);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('PKCE pair generated', function () {",
+                  "    pm.expect(pm.collectionVariables.get('code_verifier')).to.not.be.empty;",
+                  "    pm.expect(pm.collectionVariables.get('code_challenge')).to.not.be.empty;",
+                  "});",
+                  "",
+                  "const baseUrl = pm.collectionVariables.get('auth_base_url');",
+                  "const clientId = pm.collectionVariables.get('client_id');",
+                  "const redirectUri = pm.collectionVariables.get('redirect_uri');",
+                  "const challenge = pm.collectionVariables.get('code_challenge');",
+                  "",
+                  "const authorizeUrl = `${baseUrl}/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid%20profile%20admin:read%20admin:write%20user:manage%20pqr:respond&code_challenge=${challenge}&code_challenge_method=S256`;",
+                  "",
+                  "console.log('\\n=== OPEN THIS URL IN YOUR BROWSER ===');",
+                  "console.log(authorizeUrl);",
+                  "console.log('\\nAfter login, copy the code= parameter from the redirect URL.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_base_url}}/.well-known/openid-configuration",
+              "host": ["{{auth_base_url}}"],
+              "path": [".well-known", "openid-configuration"]
+            },
+            "description": "Generates PKCE code_verifier and code_challenge. Check the Postman Console (Ctrl+Alt+C) for the authorize URL to open in your browser.\n\nAfter login, copy the 'code' param from the redirect URL and set it in the collection variable 'auth_code'."
+          }
+        },
+        {
+          "name": "2. Authorize (open in browser)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_base_url}}/oauth2/authorize?response_type=code&client_id={{client_id}}&redirect_uri={{redirect_uri}}&scope=openid profile admin:read admin:write user:manage pqr:respond&code_challenge={{code_challenge}}&code_challenge_method=S256",
+              "host": ["{{auth_base_url}}"],
+              "path": ["oauth2", "authorize"],
+              "query": [
+                { "key": "response_type", "value": "code" },
+                { "key": "client_id", "value": "{{client_id}}" },
+                { "key": "redirect_uri", "value": "{{redirect_uri}}" },
+                { "key": "scope", "value": "openid profile admin:read admin:write user:manage pqr:respond" },
+                { "key": "code_challenge", "value": "{{code_challenge}}" },
+                { "key": "code_challenge_method", "value": "S256" }
+              ]
+            },
+            "description": "Copy this URL and open it in a browser. It will show the login form. After login, the browser will redirect to the callback URL with a 'code' parameter. Copy that code and paste it into the auth_code collection variable.\n\nNote: This request will fail in Postman because it requires browser interaction (form login). Use the browser instead."
+          }
+        },
+        {
+          "name": "3. Exchange Code for Tokens",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', json.access_token);",
+                  "    if (json.refresh_token) {",
+                  "        pm.collectionVariables.set('refresh_token', json.refresh_token);",
+                  "    }",
+                  "    pm.test('Tokens received', function () {",
+                  "        pm.expect(json.access_token).to.not.be.empty;",
+                  "        pm.expect(json.token_type).to.equal('Bearer');",
+                  "    });",
+                  "    console.log('access_token saved to collection variables');",
+                  "    console.log('Token expires in:', json.expires_in, 'seconds');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "authorization_code" },
+                { "key": "code", "value": "{{auth_code}}" },
+                { "key": "code_verifier", "value": "{{code_verifier}}" },
+                { "key": "client_id", "value": "{{client_id}}" },
+                { "key": "redirect_uri", "value": "{{redirect_uri}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{auth_base_url}}/oauth2/token",
+              "host": ["{{auth_base_url}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Exchange the authorization code for tokens. Make sure you've set the 'auth_code' collection variable with the code from the browser redirect.\n\nOn success, access_token and refresh_token are automatically saved to collection variables."
+          }
+        },
+        {
+          "name": "4. Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', json.access_token);",
+                  "    if (json.refresh_token) {",
+                  "        pm.collectionVariables.set('refresh_token', json.refresh_token);",
+                  "    }",
+                  "    pm.test('Tokens refreshed', function () {",
+                  "        pm.expect(json.access_token).to.not.be.empty;",
+                  "    });",
+                  "    console.log('New tokens saved to collection variables');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "refresh_token" },
+                { "key": "refresh_token", "value": "{{refresh_token}}" },
+                { "key": "client_id", "value": "{{client_id}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{auth_base_url}}/oauth2/token",
+              "host": ["{{auth_base_url}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Use the refresh_token to get a new access_token. The old refresh_token is invalidated (rotation enabled)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Token Management",
+      "item": [
+        {
+          "name": "Revoke Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{access_token}}" },
+                { "key": "client_id", "value": "{{client_id}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{auth_base_url}}/oauth2/revoke",
+              "host": ["{{auth_base_url}}"],
+              "path": ["oauth2", "revoke"]
+            },
+            "description": "Revoke an access_token or refresh_token."
+          }
+        },
+        {
+          "name": "Introspect Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{access_token}}" },
+                { "key": "client_id", "value": "{{client_id}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{auth_base_url}}/oauth2/introspect",
+              "host": ["{{auth_base_url}}"],
+              "path": ["oauth2", "introspect"]
+            },
+            "description": "Check if a token is active and get its metadata."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Password Reset",
+      "item": [
+        {
+          "name": "Request Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@sigpqr.local\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_base_url}}/api/auth/password/reset-request",
+              "host": ["{{auth_base_url}}"],
+              "path": ["api", "auth", "password", "reset-request"]
+            },
+            "description": "Request a password reset email. Sends a reset token to the user's email."
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"paste-reset-token-here\",\n  \"newPassword\": \"NewPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_base_url}}/api/auth/password/reset",
+              "host": ["{{auth_base_url}}"],
+              "path": ["api", "auth", "password", "reset"]
+            },
+            "description": "Complete the password reset using the token from the reset email."
+          }
+        }
+      ]
+    }
+  ]
+}

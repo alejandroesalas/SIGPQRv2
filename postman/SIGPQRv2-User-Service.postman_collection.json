@@ -1,0 +1,283 @@
+{
+  "info": {
+    "name": "SIGPQRv2 - User Service",
+    "description": "User management microservice API.\n\n## Authentication\nMost endpoints require a valid JWT access_token. Use the Auth Login Flow collection to obtain one, then set the 'access_token' variable.\n\n## Seeded Test Users\n| Email | Password | Profile |\n|-------|----------|---------|\n| admin@sigpqr.local | Password123 | Admin |\n| carlos.estudiante@sigpqr.local | Password123 | Student |\n| maria.estudiante@sigpqr.local | Password123 | Student |\n| pedro.docente@sigpqr.local | Password123 | Teacher |\n| ana.docente@sigpqr.local | Password123 | Teacher |",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8081" },
+    { "key": "access_token", "value": "" },
+    { "key": "user_id", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Public",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.data && json.data.id) {",
+                  "        pm.collectionVariables.set('user_id', json.data.id);",
+                  "        console.log('user_id saved:', json.data.id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test\",\n  \"lastname\": \"User\",\n  \"email\": \"test.user@sigpqr.local\",\n  \"password\": \"Password123\",\n  \"idType\": \"CC\",\n  \"idNumber\": \"9999999999\",\n  \"profileId\": 3,\n  \"programId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Register a new user. No authentication required.\n\nProfile IDs: 1=Admin, 2=Coordinator, 3=Student, 4=Teacher\nIdType: CC, TI, CE, PASSPORT"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authenticated (any user)",
+      "item": [
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}"]
+            },
+            "description": "Get user details by UUID. Requires valid JWT."
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated\",\n  \"lastname\": \"Name\",\n  \"idType\": \"CC\",\n  \"idNumber\": \"9999999999\",\n  \"programId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}"]
+            },
+            "description": "Update user details. Requires valid JWT."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin (admin:read)",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users?page=0&size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "profileId", "value": "3", "disabled": true },
+                { "key": "sort", "value": "name,asc", "disabled": true }
+              ]
+            },
+            "description": "List users with pagination. Enable profileId to filter by profile.\n\nScope required: admin:read"
+          }
+        },
+        {
+          "name": "List Users by Profile (Students)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users?profileId=3&page=0&size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"],
+              "query": [
+                { "key": "profileId", "value": "3" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "List users filtered by profileId.\n\nProfile IDs: 1=Admin, 2=Coordinator, 3=Student, 4=Teacher\n\nScope required: admin:read"
+          }
+        },
+        {
+          "name": "Count Users by Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/count",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "count"]
+            },
+            "description": "Get user count grouped by profile.\n\nScope required: admin:read"
+          }
+        },
+        {
+          "name": "List Profiles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/profiles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profiles"]
+            },
+            "description": "List all available user profiles.\n\nScope required: admin:read"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin (admin:write)",
+      "item": [
+        {
+          "name": "Delete User (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}"]
+            },
+            "description": "Soft delete a user.\n\nScope required: admin:write"
+          }
+        },
+        {
+          "name": "Restore User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}/restore",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}", "restore"]
+            },
+            "description": "Restore a soft-deleted user.\n\nScope required: admin:write"
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Management (user:manage)",
+      "item": [
+        {
+          "name": "Promote to Coordinator",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}/promote",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}", "promote"]
+            },
+            "description": "Promote a Teacher to Coordinator.\n\nScope required: user:manage"
+          }
+        },
+        {
+          "name": "Demote to Teacher",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}/demote",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}", "demote"]
+            },
+            "description": "Demote a Coordinator to Teacher.\n\nScope required: user:manage"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Internal (service-to-service)",
+      "item": [
+        {
+          "name": "Find User by Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/internal/by-email?email=admin@sigpqr.local",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "internal", "by-email"],
+              "query": [
+                { "key": "email", "value": "admin@sigpqr.local" }
+              ]
+            },
+            "description": "Lookup user credentials by email. Used by auth-service for login validation.\n\nRequires client_credentials JWT."
+          }
+        },
+        {
+          "name": "Update Password",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/internal/update-password?userId={{user_id}}&passwordHash=$2a$10$examplehash",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "internal", "update-password"],
+              "query": [
+                { "key": "userId", "value": "{{user_id}}" },
+                { "key": "passwordHash", "value": "$2a$10$examplehash" }
+              ]
+            },
+            "description": "Update a user's password hash. Used by auth-service for password reset.\n\nRequires client_credentials JWT."
+          }
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/internal/verify-email?userId={{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "internal", "verify-email"],
+              "query": [
+                { "key": "userId", "value": "{{user_id}}" }
+              ]
+            },
+            "description": "Mark a user's email as verified. Used by auth-service after email confirmation.\n\nRequires client_credentials JWT."
+          }
+        }
+      ]
+    }
+  ]
+}

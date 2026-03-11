@@ -2,6 +2,8 @@ server:
   port: 8081
 
 spring:
+  profiles:
+    active: local
   application:
     name: sigpqr-user-service
   threads:
@@ -18,11 +20,22 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:9000
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
 
 eureka:
   client:
