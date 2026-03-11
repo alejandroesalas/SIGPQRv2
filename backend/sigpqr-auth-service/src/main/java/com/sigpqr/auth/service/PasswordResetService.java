@@ -6,9 +6,13 @@ import com.sigpqr.auth.entity.PasswordResetToken;
 import com.sigpqr.auth.enums.TokenStatus;
 import com.sigpqr.auth.event.PasswordResetEvent;
 import com.sigpqr.auth.repository.PasswordResetTokenRepository;
+import com.sigpqr.common.constants.AppConstants;
 import com.sigpqr.common.constants.RabbitMQConstants;
 import com.sigpqr.common.exception.BusinessRuleException;
 import com.sigpqr.common.exception.ResourceNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,6 +23,8 @@ import java.util.UUID;
 
 @Service
 public class PasswordResetService {
+
+    private static final Logger log = LoggerFactory.getLogger(PasswordResetService.class);
 
     private final PasswordResetTokenRepository tokenRepository;
     private final UserServiceClient userServiceClient;
@@ -37,8 +43,20 @@ public class PasswordResetService {
 
     @Transactional
     public void requestReset(String email) {
-        UserCredentialsDto user = userServiceClient.findByEmail(email);
+        String cid = MDC.get(AppConstants.CORRELATION_ID_MDC_KEY);
+        log.info("[correlationId={}] Password reset requested for email={}", cid, email);
+
+        UserCredentialsDto user;
+        try {
+            user = userServiceClient.findByEmail(email);
+        } catch (Exception e) {
+            log.error("[correlationId={}] Feign call to user-service failed for email={}: {}",
+                    cid, email, e.getMessage(), e);
+            throw new ResourceNotFoundException("User", "email", email);
+        }
+
         if (user == null) {
+            log.warn("[correlationId={}] User not found for password reset: email={}", cid, email);
             throw new ResourceNotFoundException("User", "email", email);
         }
 
@@ -69,27 +87,44 @@ public class PasswordResetService {
                 RabbitMQConstants.AUTH_PASSWORD_RESET_KEY,
                 event
         );
+
+        log.info("[correlationId={}] Password reset event published for email={}", cid, email);
     }
 
     @Transactional
     public void resetPassword(String tokenValue, String newPassword) {
+        String cid = MDC.get(AppConstants.CORRELATION_ID_MDC_KEY);
+        log.info("[correlationId={}] Password reset attempt with token", cid);
+
         PasswordResetToken token = tokenRepository.findByToken(tokenValue)
-                .orElseThrow(() -> new ResourceNotFoundException("PasswordResetToken", "token", tokenValue));
+                .orElseThrow(() -> {
+                    log.warn("[correlationId={}] Reset token not found", cid);
+                    return new ResourceNotFoundException("PasswordResetToken", "token", tokenValue);
+                });
 
         if (token.getStatus() != TokenStatus.ACTIVE) {
+            log.warn("[correlationId={}] Reset token already used/expired, status={}", cid, token.getStatus());
             throw new BusinessRuleException("Reset token has already been used or expired");
         }
 
         if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
             token.setStatus(TokenStatus.EXPIRED);
             tokenRepository.save(token);
+            log.warn("[correlationId={}] Reset token expired at {}", cid, token.getExpiresAt());
             throw new BusinessRuleException("Reset token has expired");
         }
 
         String encodedPassword = passwordEncoder.encode(newPassword);
-        userServiceClient.updatePassword(token.getUserId().toString(), encodedPassword);
+        try {
+            userServiceClient.updatePassword(token.getUserId().toString(), encodedPassword);
+        } catch (Exception e) {
+            log.error("[correlationId={}] Feign call to update password failed for userId={}: {}",
+                    cid, token.getUserId(), e.getMessage(), e);
+            throw e;
+        }
 
         token.setStatus(TokenStatus.USED);
         tokenRepository.save(token);
+        log.info("[correlationId={}] Password reset completed for userId={}", cid, token.getUserId());
     }
 }

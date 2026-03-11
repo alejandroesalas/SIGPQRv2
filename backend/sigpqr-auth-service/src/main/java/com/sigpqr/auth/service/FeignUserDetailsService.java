@@ -2,6 +2,10 @@ package com.sigpqr.auth.service;
 
 import com.sigpqr.auth.client.UserServiceClient;
 import com.sigpqr.auth.dto.UserCredentialsDto;
+import com.sigpqr.common.constants.AppConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +19,8 @@ import java.util.List;
 @Service
 public class FeignUserDetailsService implements UserDetailsService {
 
+    private static final Logger log = LoggerFactory.getLogger(FeignUserDetailsService.class);
+
     private final UserServiceClient userServiceClient;
 
     public FeignUserDetailsService(UserServiceClient userServiceClient) {
@@ -23,16 +29,26 @@ public class FeignUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        String cid = MDC.get(AppConstants.CORRELATION_ID_MDC_KEY);
+        log.info("[correlationId={}] Loading user by email: {}", cid, email);
+
         UserCredentialsDto credentials;
         try {
             credentials = userServiceClient.findByEmail(email);
         } catch (Exception e) {
+            log.error("[correlationId={}] Feign call to user-service failed for email={}: {}",
+                    cid, email, e.getMessage(), e);
             throw new UsernameNotFoundException("User not found: " + email, e);
         }
 
         if (credentials == null) {
+            log.warn("[correlationId={}] User-service returned null for email={}", cid, email);
             throw new UsernameNotFoundException("User not found: " + email);
         }
+
+        log.info("[correlationId={}] User loaded: email={}, profile={}, enabled={}, verified={}",
+                cid, credentials.email(), credentials.profileId(),
+                credentials.enabled(), credentials.verified());
 
         List<SimpleGrantedAuthority> authorities = buildAuthorities(credentials.profileId());
 
