@@ -40,6 +40,12 @@ eureka:
   instance:
     prefer-ip-address: true
 
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
 auth:
   token:
     password-reset-expiry-hours: 1

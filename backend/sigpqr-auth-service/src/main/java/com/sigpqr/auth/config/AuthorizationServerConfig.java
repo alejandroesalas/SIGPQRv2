@@ -86,6 +86,11 @@ public class AuthorizationServerConfig {
         http.securityMatcher(request ->
                         !request.getRequestURI().startsWith("/api/"))
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/api-docs/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(Customizer.withDefaults());

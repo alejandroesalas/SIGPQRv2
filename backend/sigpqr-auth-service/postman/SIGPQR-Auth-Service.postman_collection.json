@@ -8,7 +8,10 @@
     { "key": "base_url", "value": "http://localhost:9000" },
     { "key": "client_id", "value": "sigpqr-user-service" },
     { "key": "client_secret", "value": "user-service-secret" },
-    { "key": "service_token", "value": "" }
+    { "key": "service_token", "value": "" },
+    { "key": "spa_client_id", "value": "sigpqr-web-student" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" }
   ],
   "item": [
     {
@@ -134,6 +137,49 @@
               "path": ["oauth2", "revoke"]
             },
             "description": "Revokes an access or refresh token."
+          }
+        },
+        {
+          "name": "Refresh Token (SPA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', json.access_token);",
+                  "    if (json.refresh_token) {",
+                  "        pm.collectionVariables.set('refresh_token', json.refresh_token);",
+                  "    }",
+                  "    pm.test('Tokens refreshed', function() {",
+                  "        pm.expect(json.access_token).to.be.a('string');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "refresh_token" },
+                { "key": "refresh_token", "value": "{{refresh_token}}" },
+                { "key": "client_id", "value": "{{spa_client_id}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Refreshes an access token using a refresh token.\n\nUsed by SPA clients (public, no client secret). The refresh token is rotated on each use (no reuse).\n\nSPA clients:\n- sigpqr-web-student (port 3000)\n- sigpqr-web-admin (port 3001)\n- sigpqr-web-coordinator (port 3002)\n\nThe new access_token and refresh_token are auto-saved to collection variables."
           }
         }
       ]
