@@ -2,6 +2,8 @@ package com.sigpqr.common.exception;
 
 import com.sigpqr.common.constants.AppConstants;
 import com.sigpqr.common.dto.ErrorResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,18 +19,23 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex) {
+        log.warn("[correlationId={}] Resource not found: {}", correlationId(), ex.getMessage());
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
     @ExceptionHandler(ResourceAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handleResourceAlreadyExists(ResourceAlreadyExistsException ex) {
+        log.warn("[correlationId={}] Resource already exists: {}", correlationId(), ex.getMessage());
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ErrorResponse> handleBusinessRule(BusinessRuleException ex) {
+        log.warn("[correlationId={}] Business rule violation: {}", correlationId(), ex.getMessage());
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
     }
 
@@ -38,11 +45,13 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors()
                 .forEach(error -> details.put(error.getField(), error.getDefaultMessage()));
 
+        log.warn("[correlationId={}] Validation failed: {}", correlationId(), details);
+
         ErrorResponse response = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "Validation failed",
                 details,
-                MDC.get(AppConstants.CORRELATION_ID_MDC_KEY),
+                correlationId(),
                 LocalDateTime.now()
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
@@ -50,11 +59,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        log.warn("[correlationId={}] Access denied: {}", correlationId(), ex.getMessage());
         return buildResponse(HttpStatus.FORBIDDEN, "Access denied");
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+        log.error("[correlationId={}] Unexpected error: {}", correlationId(), ex.getMessage(), ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
     }
 
@@ -63,9 +74,13 @@ public class GlobalExceptionHandler {
                 status.value(),
                 message,
                 null,
-                MDC.get(AppConstants.CORRELATION_ID_MDC_KEY),
+                correlationId(),
                 LocalDateTime.now()
         );
         return ResponseEntity.status(status).body(response);
+    }
+
+    private String correlationId() {
+        return MDC.get(AppConstants.CORRELATION_ID_MDC_KEY);
     }
 }
