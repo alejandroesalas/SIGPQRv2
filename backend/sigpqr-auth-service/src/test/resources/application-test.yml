@@ -1,0 +1,13 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  security:
+    oauth2:
+      authorizationserver:
+        issuer: http://localhost:9000
+
+eureka:
+  client:
+    enabled: false

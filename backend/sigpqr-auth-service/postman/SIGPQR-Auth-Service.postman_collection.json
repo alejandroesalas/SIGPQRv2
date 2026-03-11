@@ -1,0 +1,185 @@
+{
+  "info": {
+    "name": "SIGPQR Auth Service",
+    "description": "Collection for testing the SIGPQR Auth Service endpoints.\n\nPrerequisites:\n- Auth service running on http://localhost:9000\n- PostgreSQL + RabbitMQ running via Podman/Docker Compose",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:9000" },
+    { "key": "client_id", "value": "sigpqr-user-service" },
+    { "key": "client_secret", "value": "user-service-secret" },
+    { "key": "service_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "OAuth2 Endpoints",
+      "item": [
+        {
+          "name": "Get Service Token (Client Credentials)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    pm.collectionVariables.set('service_token', json.access_token);",
+                  "    pm.test('Token received', function() {",
+                  "        pm.expect(json.access_token).to.be.a('string');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{client_id}}" },
+                { "key": "password", "value": "{{client_secret}}" }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials" },
+                { "key": "scope", "value": "user:manage profile:read" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Obtains a service-to-service access token using client_credentials grant.\n\nAvailable service clients:\n- sigpqr-user-service / user-service-secret\n- sigpqr-pqr-service / pqr-service-secret\n- sigpqr-academic-service / academic-service-secret\n- sigpqr-notification-service / notification-service-secret\n- sigpqr-file-service / file-service-secret\n- sigpqr-api-gateway / gateway-secret\n\nThe token is auto-saved to the `service_token` collection variable."
+          }
+        },
+        {
+          "name": "JWKS (Public Keys)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/oauth2/jwks",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "jwks"]
+            },
+            "description": "Returns the JSON Web Key Set used to verify JWT signatures."
+          }
+        },
+        {
+          "name": "OpenID Configuration",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/openid-configuration",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "openid-configuration"]
+            },
+            "description": "Returns the OpenID Connect discovery document with all endpoint URLs."
+          }
+        },
+        {
+          "name": "Token Introspection",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{client_id}}" },
+                { "key": "password", "value": "{{client_secret}}" }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{service_token}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/introspect",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "introspect"]
+            },
+            "description": "Validates a token and returns its claims. Requires client authentication."
+          }
+        },
+        {
+          "name": "Revoke Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{client_id}}" },
+                { "key": "password", "value": "{{client_secret}}" }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{service_token}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/revoke",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "revoke"]
+            },
+            "description": "Revokes an access or refresh token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Password Reset",
+      "item": [
+        {
+          "name": "Request Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student@university.edu\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/password/reset-request",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "password", "reset-request"]
+            },
+            "description": "Sends a password reset email. Creates a reset token (1h expiry) and publishes a PasswordResetEvent to RabbitMQ.\n\nNo authentication required.\n\nNote: Requires the user to exist in user-service."
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<paste-reset-token-here>\",\n  \"newPassword\": \"NewSecurePassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/password/reset",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "password", "reset"]
+            },
+            "description": "Resets the user's password using a valid reset token.\n\nNo authentication required.\n\nValidation:\n- token: required, non-blank\n- newPassword: required, min 8 characters\n\nThe token must be ACTIVE and not expired."
+          }
+        }
+      ]
+    }
+  ]
+}
