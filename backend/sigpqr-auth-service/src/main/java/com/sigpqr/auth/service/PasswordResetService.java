@@ -12,7 +12,7 @@ import com.sigpqr.common.exception.BusinessRuleException;
 import com.sigpqr.common.exception.ResourceNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
+
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -43,7 +43,7 @@ public class PasswordResetService {
 
     @Transactional
     public void requestReset(String email) {
-        String cid = MDC.get(AppConstants.CORRELATION_ID_MDC_KEY);
+        String cid = AppConstants.getRequestId();
         log.info("[correlationId={}] Password reset requested for email={}", cid, email);
 
         UserCredentialsDto user;
@@ -93,7 +93,7 @@ public class PasswordResetService {
 
     @Transactional
     public void resetPassword(String tokenValue, String newPassword) {
-        String cid = MDC.get(AppConstants.CORRELATION_ID_MDC_KEY);
+        String cid = AppConstants.getRequestId();
         log.info("[correlationId={}] Password reset attempt with token", cid);
 
         PasswordResetToken token = tokenRepository.findByToken(tokenValue)

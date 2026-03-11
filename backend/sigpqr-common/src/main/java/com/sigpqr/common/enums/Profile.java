@@ -16,4 +16,13 @@ public enum Profile {
     public int getId() {
         return id;
     }
+
+    public static Profile fromId(int id) {
+        for (Profile p : values()) {
+            if (p.id == id) {
+                return p;
+            }
+        }
+        throw new IllegalArgumentException("Unknown profile id: " + id);
+    }
 }

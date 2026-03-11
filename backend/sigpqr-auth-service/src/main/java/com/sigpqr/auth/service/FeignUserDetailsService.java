@@ -5,7 +5,7 @@ import com.sigpqr.auth.dto.UserCredentialsDto;
 import com.sigpqr.common.constants.AppConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
+
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,7 +29,7 @@ public class FeignUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        String cid = MDC.get(AppConstants.CORRELATION_ID_MDC_KEY);
+        String cid = AppConstants.getRequestId();
         log.info("[correlationId={}] Loading user by email: {}", cid, email);
 
         UserCredentialsDto credentials;

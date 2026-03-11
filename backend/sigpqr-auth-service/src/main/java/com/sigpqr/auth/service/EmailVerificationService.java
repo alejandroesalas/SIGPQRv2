@@ -9,7 +9,7 @@ import com.sigpqr.common.exception.BusinessRuleException;
 import com.sigpqr.common.exception.ResourceNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +32,7 @@ public class EmailVerificationService {
 
     @Transactional
     public String createToken(String email, UUID userId) {
-        String cid = MDC.get(AppConstants.CORRELATION_ID_MDC_KEY);
+        String cid = AppConstants.getRequestId();
         log.info("[correlationId={}] Creating email verification token for email={}, userId={}",
                 cid, email, userId);
 
@@ -57,7 +57,7 @@ public class EmailVerificationService {
 
     @Transactional
     public void verify(String tokenValue) {
-        String cid = MDC.get(AppConstants.CORRELATION_ID_MDC_KEY);
+        String cid = AppConstants.getRequestId();
         log.info("[correlationId={}] Email verification attempt", cid);
 
         EmailVerificationToken token = tokenRepository.findByToken(tokenValue)
