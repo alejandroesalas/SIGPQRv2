@@ -35,8 +35,11 @@ services:
   zipkin:
     image: openzipkin/zipkin
     container_name: sigpqr-zipkin
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
     ports:
       - "9411:9411"
+      - "4318:4318"
 
 volumes:
   pgdata:
