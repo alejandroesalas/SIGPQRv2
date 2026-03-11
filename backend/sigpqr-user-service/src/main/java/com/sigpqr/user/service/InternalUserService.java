@@ -1,7 +1,6 @@
 package com.sigpqr.user.service;
 
 import com.sigpqr.common.constants.AppConstants;
-import com.sigpqr.common.enums.Profile;
 import com.sigpqr.common.exception.ResourceNotFoundException;
 import com.sigpqr.user.dto.UserCredentialsDto;
 import com.sigpqr.user.entity.UserEntity;
@@ -39,14 +38,14 @@ public class InternalUserService {
                 });
 
         log.info("[correlationId={}] Credentials found for email={}, profile={}, status={}, verified={}",
-                cid, email, Profile.fromId(user.getProfileId().intValue()).name(),
+                cid, email, user.getProfile().name(),
                 user.getStatus(), user.isVerified());
 
         return new UserCredentialsDto(
                 user.getId(),
                 user.getEmail(),
                 user.getPasswordHash(),
-                Profile.fromId(user.getProfileId().intValue()).name(),
+                user.getProfile().name(),
                 user.getStatus() == UserStatus.ACTIVE,
                 user.isVerified()
         );

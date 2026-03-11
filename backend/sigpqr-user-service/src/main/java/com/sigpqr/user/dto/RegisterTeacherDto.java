@@ -7,8 +7,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-@Schema(description = "User registration request")
-public record CreateUserDto(
+@Schema(description = "Teacher creation request (admin only)")
+public record RegisterTeacherDto(
         @Schema(description = "First name")
         @NotBlank(message = "Name is required")
         String name,
@@ -35,10 +35,6 @@ public record CreateUserDto(
         @NotBlank(message = "ID number is required")
         String idNumber,
 
-        @Schema(description = "Profile ID (1=Admin, 2=Coordinator, 3=Student, 4=Teacher)")
-        @NotNull(message = "Profile ID is required")
-        Long profileId,
-
-        @Schema(description = "Academic program ID (nullable)")
+        @Schema(description = "Academic program ID (optional)")
         Long programId
 ) {}

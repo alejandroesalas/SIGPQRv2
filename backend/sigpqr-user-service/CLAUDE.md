@@ -11,20 +11,24 @@ src/main/java/com/sigpqr/user/
 ├── UserServiceApplication.java          # Spring Boot entry point
 ├── config/
 │   ├── SecurityConfig.java              # OAuth2 resource server + endpoint authorization
+│   ├── DataSeeder.java                  # Seed profiles & users (local profile only)
 │   ├── OpenApiConfig.java               # Swagger/OpenAPI configuration
 │   └── RabbitMQConfig.java              # user.events exchange + JSON converter
 ├── controller/
 │   ├── UserController.java              # Public API: /api/users/**
 │   └── InternalUserController.java      # Service-to-service: /api/users/internal/**
+├── converter/
+│   └── ProfileConverter.java            # JPA AttributeConverter: Profile enum ↔ Integer (DB)
 ├── dto/
-│   ├── CreateUserDto.java               # Registration input (validated)
+│   ├── RegisterStudentDto.java          # Public student registration input (validated, no profile field)
+│   ├── RegisterTeacherDto.java          # Admin-only teacher creation input (validated, no profile field)
 │   ├── UpdateUserDto.java               # Update input (validated)
-│   ├── UserResponseDto.java             # API response (no passwordHash)
+│   ├── UserResponseDto.java             # API response (Profile enum, no passwordHash)
 │   ├── UserCredentialsDto.java          # Internal: credentials for auth-service
 │   ├── UserCountDto.java                # Count by profile response
 │   └── ProfileResponseDto.java          # Profile list response
 ├── entity/
-│   ├── UserEntity.java                  # users table — UUID PK, soft delete
+│   ├── UserEntity.java                  # users table — UUID PK, soft delete, Profile enum via converter
 │   └── ProfileEntity.java              # profiles table — Long PK (maps to Profile enum)
 ├── enums/
 │   ├── UserStatus.java                  # ACTIVE, INACTIVE
@@ -32,7 +36,7 @@ src/main/java/com/sigpqr/user/
 ├── event/
 │   └── UserRegisteredEvent.java         # Published to RabbitMQ on registration
 ├── repository/
-│   ├── UserRepository.java              # Soft-delete aware queries
+│   ├── UserRepository.java              # Soft-delete aware queries (uses Profile enum)
 │   └── ProfileRepository.java
 └── service/
     ├── UserService.java                 # Core business logic + RabbitMQ publishing
@@ -48,7 +52,17 @@ src/main/java/com/sigpqr/user/
 - Spring AMQP (RabbitMQ) for event publishing
 - Eureka client for service discovery
 - SpringDoc OpenAPI (Swagger UI)
-- sigpqr-common (ApiResponse, PageResponse, exceptions, constants, CorrelationIdFilter)
+- sigpqr-common (ApiResponse, PageResponse, exceptions, constants, Profile enum, CorrelationIdFilter)
+
+## Key Design Decisions
+
+### Profile Enum (not Long)
+`UserEntity.profile` is a `com.sigpqr.common.enums.Profile` enum, stored as integer in DB via `ProfileConverter` (JPA `AttributeConverter`). The DB column stays `profile_id INTEGER` — the converter handles `Profile.STUDENT ↔ 3`. No casts anywhere in Java code.
+
+### Split Registration Endpoints
+- `POST /api/users` — public student self-registration (profile hardcoded to `STUDENT`)
+- `POST /api/users/teachers` — admin-only teacher creation (requires `admin:write` scope)
+- No generic "create any role" endpoint exists. This prevents unauthorized role escalation.
 
 ## API Endpoints
 
@@ -56,8 +70,9 @@ src/main/java/com/sigpqr/user/
 
 | Method | Endpoint | Scope | Description |
 |--------|----------|-------|-------------|
-| GET | `/api/users` | `admin:read` | List users (filterable by profileId) |
-| POST | `/api/users` | public | Register user |
+| GET | `/api/users` | `admin:read` | List users (filterable by `?profile=STUDENT`) |
+| POST | `/api/users` | public | Register student |
+| POST | `/api/users/teachers` | `admin:write` | Create teacher (admin only) |
 | GET | `/api/users/{id}` | authenticated | Get user details |
 | PUT | `/api/users/{id}` | authenticated | Update user |
 | DELETE | `/api/users/{id}` | `admin:write` | Soft delete |

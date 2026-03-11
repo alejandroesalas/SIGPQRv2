@@ -2,8 +2,10 @@ package com.sigpqr.user.controller;
 
 import com.sigpqr.common.dto.ApiResponse;
 import com.sigpqr.common.dto.PageResponse;
-import com.sigpqr.user.dto.CreateUserDto;
+import com.sigpqr.common.enums.Profile;
 import com.sigpqr.user.dto.ProfileResponseDto;
+import com.sigpqr.user.dto.RegisterStudentDto;
+import com.sigpqr.user.dto.RegisterTeacherDto;
 import com.sigpqr.user.dto.UpdateUserDto;
 import com.sigpqr.user.dto.UserCountDto;
 import com.sigpqr.user.dto.UserResponseDto;
@@ -44,18 +46,26 @@ public class UserController {
     @GetMapping
     @Operation(summary = "List users", description = "List users with optional profile filter and pagination")
     public ResponseEntity<ApiResponse<PageResponse<UserResponseDto>>> listUsers(
-            @RequestParam(required = false) Long profileId,
+            @RequestParam(required = false) Profile profile,
             Pageable pageable) {
-        var page = userService.listUsers(profileId, pageable);
+        var page = userService.listUsers(profile, pageable);
         return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(page)));
     }
 
     @PostMapping
-    @Operation(summary = "Create user", description = "Register a new user")
-    public ResponseEntity<ApiResponse<UserResponseDto>> createUser(
-            @Valid @RequestBody CreateUserDto dto) {
-        var user = userService.createUser(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("User created successfully", user));
+    @Operation(summary = "Register student", description = "Public student registration")
+    public ResponseEntity<ApiResponse<UserResponseDto>> registerStudent(
+            @Valid @RequestBody RegisterStudentDto dto) {
+        var user = userService.registerStudent(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Student registered successfully", user));
+    }
+
+    @PostMapping("/teachers")
+    @Operation(summary = "Create teacher", description = "Create a teacher (admin only)")
+    public ResponseEntity<ApiResponse<UserResponseDto>> createTeacher(
+            @Valid @RequestBody RegisterTeacherDto dto) {
+        var user = userService.createTeacher(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Teacher created successfully", user));
     }
 
     @GetMapping("/{id}")

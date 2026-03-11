@@ -62,16 +62,21 @@ public class DataSeeder implements CommandLineRunner {
     private void seedUsers() {
         String encodedPassword = passwordEncoder.encode("Password123");
 
-        seedUser("Admin", "User", "admin@sigpqr.local", encodedPassword, "1000000001", 1L, null);
-        seedUser("Carlos", "Estudiante", "carlos.estudiante@sigpqr.local", encodedPassword, "1000000002", 3L, 1L);
-        seedUser("Maria", "Estudiante", "maria.estudiante@sigpqr.local", encodedPassword, "1000000003", 3L, 1L);
-        seedUser("Pedro", "Docente", "pedro.docente@sigpqr.local", encodedPassword, "1000000004", 4L, 1L);
-        seedUser("Ana", "Docente", "ana.docente@sigpqr.local", encodedPassword, "1000000005", 4L, 1L);
+        seedUser("Admin", "User", "admin@sigpqr.local", encodedPassword, "1000000001",
+                com.sigpqr.common.enums.Profile.ADMIN, null);
+        seedUser("Carlos", "Estudiante", "carlos.estudiante@sigpqr.local", encodedPassword, "1000000002",
+                com.sigpqr.common.enums.Profile.STUDENT, 1L);
+        seedUser("Maria", "Estudiante", "maria.estudiante@sigpqr.local", encodedPassword, "1000000003",
+                com.sigpqr.common.enums.Profile.STUDENT, 1L);
+        seedUser("Pedro", "Docente", "pedro.docente@sigpqr.local", encodedPassword, "1000000004",
+                com.sigpqr.common.enums.Profile.TEACHER, 1L);
+        seedUser("Ana", "Docente", "ana.docente@sigpqr.local", encodedPassword, "1000000005",
+                com.sigpqr.common.enums.Profile.TEACHER, 1L);
     }
 
     private void seedUser(String name, String lastname, String email,
                           String encodedPassword, String idNumber,
-                          Long profileId, Long programId) {
+                          com.sigpqr.common.enums.Profile profile, Long programId) {
         if (userRepository.existsByEmailAndDeletedFalse(email)) {
             log.info("User {} already exists, skipping.", email);
             return;
@@ -86,10 +91,10 @@ public class DataSeeder implements CommandLineRunner {
         user.setIdNumber(idNumber);
         user.setVerified(true);
         user.setStatus(UserStatus.ACTIVE);
-        user.setProfileId(profileId);
+        user.setProfile(profile);
         user.setProgramId(programId);
         userRepository.save(user);
 
-        log.info("Seeded user: {} (profile={})", email, profileId);
+        log.info("Seeded user: {} (profile={})", email, profile);
     }
 }

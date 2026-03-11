@@ -1,8 +1,11 @@
 package com.sigpqr.user.entity;
 
+import com.sigpqr.common.enums.Profile;
+import com.sigpqr.user.converter.ProfileConverter;
 import com.sigpqr.user.enums.IdType;
 import com.sigpqr.user.enums.UserStatus;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -50,8 +53,9 @@ public class UserEntity {
     @Column(nullable = false)
     private UserStatus status = UserStatus.ACTIVE;
 
+    @Convert(converter = ProfileConverter.class)
     @Column(name = "profile_id", nullable = false)
-    private Long profileId;
+    private Profile profile;
 
     @Column(name = "program_id")
     private Long programId;
@@ -148,12 +152,12 @@ public class UserEntity {
         this.status = status;
     }
 
-    public Long getProfileId() {
-        return profileId;
+    public Profile getProfile() {
+        return profile;
     }
 
-    public void setProfileId(Long profileId) {
-        this.profileId = profileId;
+    public void setProfile(Profile profile) {
+        this.profile = profile;
     }
 
     public Long getProgramId() {

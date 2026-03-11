@@ -1,5 +1,6 @@
 package com.sigpqr.user.repository;
 
+import com.sigpqr.common.enums.Profile;
 import com.sigpqr.user.entity.UserEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,11 +15,11 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
     Optional<UserEntity> findByEmailAndDeletedFalse(String email);
 
-    Page<UserEntity> findByProfileIdAndDeletedFalse(Long profileId, Pageable pageable);
+    Page<UserEntity> findByProfileAndDeletedFalse(Profile profile, Pageable pageable);
 
     Page<UserEntity> findAllByDeletedFalse(Pageable pageable);
 
     boolean existsByEmailAndDeletedFalse(String email);
 
-    long countByProfileIdAndDeletedFalse(Long profileId);
+    long countByProfileAndDeletedFalse(Profile profile);
 }

@@ -1,5 +1,6 @@
 package com.sigpqr.user.dto;
 
+import com.sigpqr.common.enums.Profile;
 import com.sigpqr.user.entity.UserEntity;
 import com.sigpqr.user.enums.IdType;
 import com.sigpqr.user.enums.UserStatus;
@@ -18,7 +19,7 @@ public record UserResponseDto(
         String idNumber,
         boolean verified,
         UserStatus status,
-        Long profileId,
+        Profile profile,
         Long programId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
@@ -34,7 +35,7 @@ public record UserResponseDto(
                 entity.getIdNumber(),
                 entity.isVerified(),
                 entity.getStatus(),
-                entity.getProfileId(),
+                entity.getProfile(),
                 entity.getProgramId(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()

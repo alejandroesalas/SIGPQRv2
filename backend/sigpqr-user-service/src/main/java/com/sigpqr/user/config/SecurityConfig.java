@@ -32,7 +32,10 @@ public class SecurityConfig {
                                 "/actuator/**"
                         ).permitAll()
 
-                        // Public registration
+                        // Admin-only teacher creation
+                        .requestMatchers(HttpMethod.POST, "/api/users/teachers").hasAuthority("SCOPE_" + SecurityConstants.SCOPE_ADMIN_WRITE)
+
+                        // Public student registration
                         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
 
                         // Internal endpoints (service-to-service, no JWT — protected at network level)
